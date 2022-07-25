@@ -2,65 +2,71 @@
 package galaxyraiders.core.physics
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import kotlin.math.PI
+import kotlin.math.atan2
+import kotlin.math.sqrt
+
+private const val DEGREES_IN_PI_RADIANS = 180
 
 @JsonIgnoreProperties("unit", "normal", "degree", "magnitude")
 data class Vector2D(val dx: Double, val dy: Double) {
+
   override fun toString(): String {
     return "Vector2D(dx=$dx, dy=$dy)"
   }
 
   val magnitude: Double
-    get() = INVALID_DOUBLE
+    get() = sqrt(this * this)
 
   val radiant: Double
-    get() = INVALID_DOUBLE
+    get() = atan2(dy, dx)
 
   val degree: Double
-    get() = INVALID_DOUBLE
+    get() = radiant * DEGREES_IN_PI_RADIANS / PI
 
   val unit: Vector2D
-    get() = INVALID_VECTOR
+    get() = this / magnitude
 
   val normal: Vector2D
-    get() = INVALID_VECTOR
+    get() = Vector2D(unit.dy, -unit.dx)
 
   operator fun times(scalar: Double): Vector2D {
-    return INVALID_VECTOR
+    return Vector2D(scalar * dx, scalar * dy)
   }
 
   operator fun div(scalar: Double): Vector2D {
-    return INVALID_VECTOR
+    return Vector2D(dx / scalar, dy / scalar)
   }
 
   operator fun times(v: Vector2D): Double {
-    return INVALID_DOUBLE
+    return dx * v.dx + dy * v.dy
   }
 
   operator fun plus(v: Vector2D): Vector2D {
-    return INVALID_VECTOR
+    return Vector2D(dx + v.dx, dy + v.dy)
   }
 
   operator fun plus(p: Point2D): Point2D {
-    return INVALID_POINT
+    return Point2D(p.x + dx, p.y + dy)
   }
 
   operator fun unaryMinus(): Vector2D {
-    return INVALID_VECTOR
+    return Vector2D(-dx, -dy)
   }
 
   operator fun minus(v: Vector2D): Vector2D {
-    return INVALID_VECTOR
+    return Vector2D(dx - v.dx, dy - v.dy)
   }
 
   fun scalarProject(target: Vector2D): Double {
-    return INVALID_DOUBLE
+    return this * target.unit
   }
 
   fun vectorProject(target: Vector2D): Vector2D {
-    return INVALID_VECTOR
+    return scalarProject(target) * target.unit
   }
 }
 
 operator fun Double.times(v: Vector2D): Vector2D {
-  return INVALID_VECTOR
+  return v * this
 }
