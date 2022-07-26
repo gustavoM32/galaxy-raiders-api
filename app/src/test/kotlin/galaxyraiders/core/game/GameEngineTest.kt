@@ -1,5 +1,7 @@
 package galaxyraiders.core.game
 
+import galaxyraiders.core.physics.Object2D
+import galaxyraiders.core.physics.Point2D
 import galaxyraiders.helpers.AverageValueGeneratorStub
 import galaxyraiders.helpers.ControllerSpy
 import galaxyraiders.helpers.MaxValueGeneratorStub
@@ -8,7 +10,9 @@ import galaxyraiders.helpers.VisualizerSpy
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
+import java.lang.reflect.Field
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -44,7 +48,7 @@ class GameEngineTest {
     assertAll(
       "GameEngine should initialize all its parameters correctly",
       { assertNotNull(normalGame) },
-      { assertEquals(avgGenerator, normalGame.generator,) },
+      { assertEquals(avgGenerator, normalGame.generator) },
       { assertEquals(controllerSpy, normalGame.controller) },
       { assertEquals(visualizerSpy, normalGame.visualizer) },
     )
@@ -109,6 +113,24 @@ class GameEngineTest {
   }
 
   @Test
+  fun `it updates Explosion objects`() {
+    hardGame.generateAsteroids()
+    val asteroid = hardGame.field.asteroids[0]
+    hardGame.field.generateExplosion(asteroid.center, 1)
+    val explosion = hardGame.field.explosions.last()
+
+    val beforeUpdate = explosion.died()
+    hardGame.updateExplosions()
+    val afterUpdate = explosion.died()
+
+    assertAll(
+      "GameEngine should update Explosion objects",
+      { assertFalse(beforeUpdate) },
+      { assertTrue(afterUpdate) },
+    )
+  }
+
+  @Test
   fun `it handle collisions between objects`() {
     // Degenerate scenario: both asteroids will be above each other
     hardGame.generateAsteroids()
@@ -123,6 +145,52 @@ class GameEngineTest {
       hardGame.field.asteroids.map { it.velocity }
 
     assertNotEquals(asteroidsInitialVelocity, asteroidsFinalVelocity)
+  }
+
+  @Test
+  fun `it does not detect collisions between an explosion and an asteroid`() {
+    hardGame.generateAsteroids()
+    val asteroid = hardGame.field.asteroids[0]
+    hardGame.field.generateExplosion(asteroid.center, 15)
+
+    val asteroidInitialVelocity = asteroid.velocity
+    hardGame.handleCollisions()
+    val asteroidFinalVelocity = asteroid.velocity
+
+    assertEquals(asteroidInitialVelocity, asteroidFinalVelocity)
+  }
+
+  @Test
+  fun `it does not generate an explosion if there are no asteroids and two missiles collide`() {
+    hardGame.field.generateMissile()
+    hardGame.field.generateMissile()
+
+    val beforeExplosionSize = hardGame.field.explosions.size
+    hardGame.handleCollisions()
+    val afterExplosionSize = hardGame.field.explosions.size
+
+    assertEquals(beforeExplosionSize, afterExplosionSize)
+  }
+
+  @Test
+  fun `it generates an explosion if a missile collides with an asteroid`() {
+    hardGame.generateAsteroids()
+    val asteroid = hardGame.field.asteroids[0]
+    hardGame.field.generateMissile()
+    val missile = hardGame.field.missiles.last()
+
+    // move missile to asteroid position
+    val centerField: Field = Object2D::class.java.getDeclaredField("center")
+    centerField.isAccessible = true
+    centerField.set(missile, asteroid.center)
+
+    val beforeExplosionSize = hardGame.field.explosions.size
+
+    hardGame.handleCollisions()
+
+    val afterExplosionSize = hardGame.field.explosions.size
+
+    assertEquals(beforeExplosionSize + 1, afterExplosionSize)
   }
 
   @Test
@@ -154,6 +222,7 @@ class GameEngineTest {
   fun `it can trim its space objects`() {
     hardGame.field.generateAsteroid()
     hardGame.field.generateMissile()
+    hardGame.field.generateExplosion(Point2D(1.0, 1.0), 0)
 
     val missile = hardGame.field.missiles.last()
     val missileDistanceToTopBorder =
@@ -168,6 +237,8 @@ class GameEngineTest {
     val repetitionsToGetAsteroidOutsideOfSpaceField = Math.ceil(
       asteroidDistanceToBottomBorder / Math.abs(asteroid.velocity.dy)
     ).toInt()
+
+    val explosion = hardGame.field.explosions.last()
 
     val repetitionsToGetSpaceObjectsOutOfSpaceField = Math.max(
       repetitionsToGetMissileOutOfSpaceField,
@@ -184,6 +255,7 @@ class GameEngineTest {
       "GameEngine should trim all space objects",
       { assertEquals(-1, hardGame.field.missiles.indexOf(missile)) },
       { assertEquals(-1, hardGame.field.asteroids.indexOf(asteroid)) },
+      { assertEquals(-1, hardGame.field.explosions.indexOf(explosion)) },
     )
   }
 
