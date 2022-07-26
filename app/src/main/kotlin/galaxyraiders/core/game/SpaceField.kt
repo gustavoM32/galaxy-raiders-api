@@ -38,8 +38,12 @@ data class SpaceField(val width: Int, val height: Int, val generator: RandomGene
   var asteroids: List<Asteroid> = emptyList()
     private set
 
+  var explosions: List<Explosion> = emptyList()
+    private set
+
   val spaceObjects: List<SpaceObject>
-    get() = listOf(this.ship) + this.missiles + this.asteroids
+    // the order is important here for collision detection
+    get() = listOf(this.ship) + this.missiles + this.asteroids + this.explosions
 
   fun moveShip() {
     this.ship.move(boundaryX, boundaryY)
@@ -61,6 +65,10 @@ data class SpaceField(val width: Int, val height: Int, val generator: RandomGene
     this.asteroids += this.createAsteroidWithRandomProperties()
   }
 
+  fun generateExplosion(position: Point2D, durationInTicks: Int) {
+    this.explosions += this.createExplosion(position, durationInTicks)
+  }
+
   fun trimMissiles() {
     this.missiles = this.missiles.filter {
       it.inBoundaries(this.boundaryX, this.boundaryY)
@@ -70,6 +78,12 @@ data class SpaceField(val width: Int, val height: Int, val generator: RandomGene
   fun trimAsteroids() {
     this.asteroids = this.asteroids.filter {
       it.inBoundaries(this.boundaryX, this.boundaryY)
+    }
+  }
+
+  fun trimExplosions() {
+    this.explosions = this.explosions.filter {
+      !it.died()
     }
   }
 
@@ -96,6 +110,13 @@ data class SpaceField(val width: Int, val height: Int, val generator: RandomGene
       initialVelocity = defineMissileVelocity(),
       radius = SpaceFieldConfig.missileRadius,
       mass = SpaceFieldConfig.missileMass,
+    )
+  }
+
+  private fun createExplosion(position: Point2D, durationInTicks: Int): Explosion {
+    return Explosion(
+      position = position,
+      durationInTicks = durationInTicks
     )
   }
 
